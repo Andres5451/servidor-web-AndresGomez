@@ -1,0 +1,43 @@
+name: Blue/Green Deployment
+
+on:
+  push:
+    branches: [ blue ]
+  workflow_dispatch:
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run basic tests
+        run: |
+          if [ ! -f "index.html" ]; then
+            echo "Error: index.html not found."
+            exit 1
+          fi
+
+          if ! grep -q "Versión Blue" "index.html"; then
+            echo "Error: 'Versión Blue' not found in index.html."
+            exit 1
+          fi
+
+      - name: Promote Blue to Green
+        if: success()
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git checkout -B green
+          git push --force origin green
+
+      - name: Rollback on failure
+        if: failure()
+        run: exit 1
